@@ -23,11 +23,12 @@ source "${LIB}/rules.sh"; source "${LIB}/discover.sh"
 # ── options ───────────────────────────────────────────────────────────────────
 CMD="${1:-scan}"; shift || true
 PROFILE="general"; JSON=false; ALL=false; CLINJ_DRY_RUN=false
-AGG_OVERRIDE=""; INCLUDE_REVIEW=false; ONLY_CAT=""; SWEEP_DAYS=7; ONLY_IDS=""
+AGG_OVERRIDE=""; INCLUDE_REVIEW=false; ONLY_CAT=""; SWEEP_DAYS=7; ONLY_IDS=""; STREAM=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --profile) PROFILE="$2"; shift 2 ;;
         --json) JSON=true; shift ;;
+        --stream) STREAM=true; shift ;;
         --all) ALL=true; shift ;;
         --dry-run) CLINJ_DRY_RUN=true; shift ;;
         --aggressive) AGG_OVERRIDE="yes"; shift ;;
@@ -66,6 +67,8 @@ build_catalog() { CATALOG="$(clinj_discover)"; }
 
 # ── scan ──────────────────────────────────────────────────────────────────────
 cmd_scan() {
+    # streaming mode: emit raw TSV item-by-item (for the GUI's live scan view)
+    if [[ "$STREAM" == true ]]; then clinj_discover; return; fi
     load_profile; build_catalog
     if [[ "$JSON" == true ]]; then
         printf '['; local first=1 id cat safe mode regen kb label path

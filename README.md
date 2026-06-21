@@ -1,6 +1,8 @@
 <div align="center">
 
-# Clinj 🧼
+<img src="docs/icon.png" width="128" alt="Clinj icon">
+
+# Clinj
 
 **An honest, open-source disk reclaimer for macOS.**
 
@@ -34,14 +36,29 @@ Most Mac "cleaners" are opaque, paid, and ship a fixed list of paths. Clinj is t
 
 ## Install
 
-```bash
-# Homebrew (once tapped/published)
-brew install AmirmLotfy/clinj/clinj
+**CLI (zero dependencies, works today):**
 
-# or straight from source — no build step
-git clone https://github.com/AmirmLotfy/clinj && cd clinj
-./bin/clinj scan
+```bash
+# Homebrew
+brew install --HEAD AmirmLotfy/clinj/clinj
+
+# or one-line installer
+curl -fsSL https://raw.githubusercontent.com/AmirmLotfy/clinj/main/install.sh | bash
+
+# or from source, no build step
+git clone https://github.com/AmirmLotfy/clinj && cd clinj && ./bin/clinj scan
 ```
+
+**App (window + menu-bar):** build it from source —
+
+```bash
+git clone https://github.com/AmirmLotfy/clinj && cd clinj
+bash app/build-app.sh --install        # → /Applications/Clinj.app
+```
+
+> The prebuilt `.app` isn't notarized yet, so a downloaded build needs a one-time
+> **right-click → Open** (or System Settings → Privacy & Security → *Open Anyway*).
+> Building from source as above avoids that.
 
 ## Usage
 

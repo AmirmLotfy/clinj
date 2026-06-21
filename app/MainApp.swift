@@ -35,11 +35,27 @@ enum Engine {
         return String(data: data, encoding: .utf8) ?? ""
     }
 
-    static func scan() -> [CatalogItem] {
-        let out = run(["scan", "--all", "--json"])
-        guard let d = out.data(using: .utf8),
-              let items = try? JSONDecoder().decode([CatalogItem].self, from: d) else { return [] }
-        return items.sorted { $0.size_kb > $1.size_kb }
+    // parse one TSV catalog line: id\tcategory\tsafe\tmode\tregen\tsize_kb\tlabel\tpath
+    static func parseTSV(_ line: String) -> CatalogItem? {
+        let f = line.components(separatedBy: "\t")
+        guard f.count == 8, let kb = Int(f[5]) else { return nil }
+        return CatalogItem(id: f[0], category: f[1], safe: f[2], mode: f[3],
+                           size_kb: kb, regen: f[4], label: f[6], path: f[7])
+    }
+}
+
+// Accumulates pipe data and yields complete newline-terminated lines.
+final class LineBox {
+    private var buf = Data()
+    func feed(_ d: Data) -> [String] {
+        buf.append(d)
+        var out: [String] = []
+        while let nl = buf.firstIndex(of: 0x0A) {
+            let lineData = buf.subdata(in: buf.startIndex..<nl)
+            buf.removeSubrange(buf.startIndex...nl)
+            if let s = String(data: lineData, encoding: .utf8), !s.isEmpty { out.append(s) }
+        }
+        return out
     }
 }
 
@@ -65,6 +81,8 @@ func humanKB(_ kb: Int) -> String {
     @Published var busy = false
     @Published var resultText: String?
     @Published var didScan = false
+    @Published var foundKB = 0
+    @Published var currentLabel = ""
 
     var profile: (id: String, name: String, cats: Set<String>, aggressive: Bool) { PROFILES[profileIndex] }
     var categories: [String] {
@@ -94,14 +112,34 @@ func humanKB(_ kb: Int) -> String {
     }
 
     func scan() {
-        scanning = true; resultText = nil
-        Task {
-            let r = await Task.detached { Engine.scan() }.value
-            self.items = r
-            self.selected = self.defaultSelected()
-            self.scanning = false
-            self.didScan = true
+        scanning = true; didScan = false; resultText = nil
+        items = []; foundKB = 0; currentLabel = ""
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/bin/bash")
+        p.arguments = [Engine.script, "scan", "--stream"]
+        let pipe = Pipe(); p.standardOutput = pipe; p.standardError = Pipe()
+        let handle = pipe.fileHandleForReading
+        let box = LineBox()
+        handle.readabilityHandler = { h in
+            let d = h.availableData
+            guard !d.isEmpty else { return }
+            for line in box.feed(d) {
+                if let item = Engine.parseTSV(line) { Task { @MainActor in self.append(item) } }
+            }
         }
+        p.terminationHandler = { _ in
+            handle.readabilityHandler = nil
+            Task { @MainActor in self.finishScan() }
+        }
+        do { try p.run() } catch { scanning = false; resultText = "Scan failed to launch." }
+    }
+
+    func append(_ it: CatalogItem) { items.append(it); foundKB += it.size_kb; currentLabel = it.label }
+
+    func finishScan() {
+        items.sort { $0.size_kb > $1.size_kb }
+        selected = defaultSelected()
+        scanning = false; didScan = true; currentLabel = ""
     }
 
     func clean(dryRun: Bool) {
@@ -134,6 +172,47 @@ func humanKB(_ kb: Int) -> String {
 
 // MARK: - Views
 
+struct ScanningView: View {
+    let count: Int; let kb: Int; let current: String
+    @State private var spin = false
+    @State private var pulse = false
+    @State private var phase = 0
+    private let phases = ["Scanning caches…", "Detecting apps & browsers…",
+                          "Measuring sizes…", "Classifying what's safe…"]
+    private let timer = Timer.publish(every: 1.4, on: .main, in: .common).autoconnect()
+    private let accent = LinearGradient(colors: [.blue, .cyan], startPoint: .top, endPoint: .bottom)
+
+    var body: some View {
+        VStack(spacing: 18) {
+            Spacer()
+            ZStack {
+                Circle().stroke(Color.secondary.opacity(0.15), lineWidth: 9)
+                Circle().trim(from: 0, to: 0.22)
+                    .stroke(accent, style: StrokeStyle(lineWidth: 9, lineCap: .round))
+                    .rotationEffect(.degrees(spin ? 360 : 0))
+                    .animation(.linear(duration: 0.9).repeatForever(autoreverses: false), value: spin)
+                Image(systemName: "sparkles").font(.system(size: 36))
+                    .foregroundStyle(accent)
+                    .scaleEffect(pulse ? 1.12 : 0.9)
+                    .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: pulse)
+            }
+            .frame(width: 120, height: 120)
+
+            Text(phases[phase]).font(.headline).transition(.opacity)
+            Text("\(count) items · \(humanKB(kb)) found")
+                .font(.title3.weight(.semibold).monospacedDigit())
+                .contentTransition(.numericText())
+            Text(current.isEmpty ? " " : current)
+                .font(.caption).foregroundColor(.secondary).lineLimit(1)
+                .frame(maxWidth: 400).truncationMode(.middle)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .onAppear { spin = true; pulse = true }
+        .onReceive(timer) { _ in withAnimation { phase = (phase + 1) % phases.count } }
+    }
+}
+
 struct SafeTag: View {
     let safe: String
     var body: some View {
@@ -153,7 +232,7 @@ struct ContentView: View {
             header
             Divider()
             if m.scanning {
-                Spacer(); ProgressView("Scanning your Mac…"); Spacer()
+                ScanningView(count: m.items.count, kb: m.foundKB, current: m.currentLabel)
             } else if !m.didScan {
                 emptyState
             } else {

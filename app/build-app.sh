@@ -18,7 +18,7 @@ chmod +x "$APP/Contents/Resources/core/clinj.sh"
 
 echo "• Generating icon…"
 PNG="$BUILD/icon.png"; SET="$BUILD/clinj.iconset"; mkdir -p "$SET"
-if swift "$ROOT/legacy/app/makeicon.swift" "$PNG" 2>/dev/null && [[ -f "$PNG" ]]; then
+if swift "$ROOT/app/makeicon.swift" "$PNG" 2>/dev/null && [[ -f "$PNG" ]]; then
     for s in 16 32 128 256 512; do
         sips -z $s $s          "$PNG" --out "$SET/icon_${s}x${s}.png"      >/dev/null 2>&1
         sips -z $((s*2)) $((s*2)) "$PNG" --out "$SET/icon_${s}x${s}@2x.png" >/dev/null 2>&1
