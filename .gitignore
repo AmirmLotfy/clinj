@@ -1,0 +1,6 @@
+.DS_Store
+*.log
+quarantine/
+dist/
+*.icns.tmp
+.idea/

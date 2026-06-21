@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# clinj launcher — resolves the repo root and runs the engine.
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec "$DIR/core/clinj.sh" "$@"
