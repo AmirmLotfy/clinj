@@ -30,7 +30,7 @@ clinj_discover() {
     }
 
     # ── 1. known rules ────────────────────────────────────────────────────────
-    local line id cat safe mode regen label target
+    local id cat safe mode regen label target
     while IFS='|' read -r id cat safe mode regen label target; do
         [[ -z "$id" || "$id" == \#* ]] && continue
         if [[ "$mode" == cmd ]]; then

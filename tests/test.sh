@@ -2,7 +2,7 @@
 # Smoke + safety tests. Runs in CI (macOS) and locally. Exits non-zero on failure.
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT"
+cd "$ROOT" || exit 1
 fail=0
 ok() { printf "  ok   %s\n" "$1"; }
 no() { printf "  FAIL %s\n" "$1"; fail=1; }
@@ -22,7 +22,7 @@ echo "human_kb formatting:"
 [[ "$(human_kb 2048)" == "2 MB" ]]         && ok "2 MB"           || no "human_kb 2048"
 
 echo "quarantine round-trip:"
-export CLINJ_HOME="$(mktemp -d)"
+CLINJ_HOME="$(mktemp -d)"; export CLINJ_HOME
 SRC="$HOME/Library/Caches/clinj-citest-$$"; mkdir -p "$SRC"; echo marker > "$SRC/m.txt"
 B="$(quarantine_new_batch citest)"
 quarantine_move "$SRC" "$B" 1
