@@ -11,6 +11,10 @@ what each thing is and what regenerates it, and keeps anything uncertain **recov
 
 No telemetry. No subscription. ~600 lines of auditable shell. Zero runtime dependencies.
 
+<br>
+
+<img src="docs/demo.gif" width="720" alt="Clinj: scan → review → clean">
+
 </div>
 
 ---
@@ -84,6 +88,12 @@ clinj profiles                      # list profiles
 | `general`   | everyday Mac | browser + app caches, system, Trash |
 | `designer`  | creative work | general + iOS/sim caches |
 | `developer` | full toolchain | npm/pnpm/yarn/pip/uv/go/cargo/gradle/cocoapods/Xcode/Docker + apps + browsers, incl. aggressive items |
+
+## Screenshots
+
+| Live scan | Review & reclaim |
+|-----------|------------------|
+| ![scanning](docs/scanning.png) | ![results](docs/results.png) |
 
 ## Safety model
 
